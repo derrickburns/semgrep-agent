@@ -1,6 +1,5 @@
 """CLI entry point for semgrep-agent."""
 
-import sys
 from pathlib import Path
 
 import click
@@ -12,7 +11,7 @@ from .issues import get_existing_issues, create_issue
 @click.command()
 @click.argument("target", type=click.Path(exists=True, path_type=Path))
 @click.option("--repo", required=True, help="GitHub repo (owner/name)")
-@click.option("--config", default="auto", help="Semgrep config (default: auto)")
+@click.option("--config", default=None, help="Semgrep config string (e.g. p/security-audit)")
 @click.option(
     "--severity",
     multiple=True,
@@ -29,17 +28,20 @@ from .issues import get_existing_issues, create_issue
 def main(
     target: Path,
     repo: str,
-    config: str,
+    config: str | None,
     severity: tuple[str, ...],
     exclude: tuple[str, ...],
     dry_run: bool,
     max_issues: int,
 ) -> None:
-    """Scan a codebase with Semgrep and create GitHub issues for findings.
+    """Scan a codebase with Semgrep (via MCP) and create GitHub issues for findings.
 
     TARGET is the path to the codebase to scan.
+
+    Requires `semgrep` to be installed (for the MCP server) and `gh` CLI
+    to be authenticated (for issue creation).
     """
-    click.echo(f"Scanning {target} with config '{config}'...")
+    click.echo(f"Scanning {target} via Semgrep MCP server...")
 
     findings = run_semgrep(
         target,

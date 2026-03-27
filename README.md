@@ -1,15 +1,14 @@
 # semgrep-agent
 
-CLI tool that scans a codebase with [Semgrep](https://semgrep.dev) and creates GitHub issues for findings.
+CLI agent that scans a codebase via the [Semgrep MCP server](https://github.com/semgrep/mcp) and creates GitHub issues for findings.
 
-## Features
+## How it works
 
-- Runs Semgrep locally against any codebase
-- Groups findings by rule (one issue per rule, listing all occurrences)
-- Deduplicates against existing open issues to avoid duplicates on re-runs
-- Labels issues by severity (`severity:high`, `severity:medium`, `severity:low`)
-- Supports dry-run mode to preview before creating issues
-- Configurable severity filter, exclusion patterns, and issue limits
+1. Launches `semgrep mcp -t stdio` as an MCP server subprocess
+2. Connects as an MCP client and calls `semgrep_scan_local` with file paths
+3. Groups findings by rule ID
+4. Checks existing open issues (by label) to avoid duplicates
+5. Creates one GitHub issue per rule with all occurrences listed
 
 ## Prerequisites
 
@@ -26,7 +25,7 @@ pip install -e .
 ## Usage
 
 ```bash
-# Scan a repo and create issues (dry-run first)
+# Dry-run first
 semgrep-agent /path/to/repo --repo owner/repo-name --dry-run
 
 # Create issues for real
@@ -41,17 +40,29 @@ semgrep-agent /path/to/repo --repo owner/repo-name --config p/security-audit
 # Exclude directories
 semgrep-agent /path/to/repo --repo owner/repo-name --exclude "vendor/*" --exclude "test/*"
 
-# Limit number of issues created
+# Limit issues created per run
 semgrep-agent /path/to/repo --repo owner/repo-name --max-issues 10
 ```
 
-## How it works
+## Architecture
 
-1. Runs `semgrep --json` on the target directory
-2. Groups findings by rule ID
-3. Checks existing open issues (by label) to avoid duplicates
-4. Creates one GitHub issue per rule with all occurrences listed
-5. Applies labels: `semgrep`, `severity:{level}`, `semgrep:{rule_id}`
+```
+semgrep-agent (MCP client)
+    │
+    ├── Launches: semgrep mcp -t stdio (MCP server)
+    │     └── calls semgrep_scan_local tool
+    │
+    ├── Deduplicates via: gh issue list --label semgrep
+    │
+    └── Creates via: gh issue create
+```
+
+## Labels
+
+Issues are tagged with:
+- `semgrep` — all agent-created issues
+- `severity:high` / `severity:medium` / `severity:low`
+- `semgrep:{rule_id}` — for deduplication
 
 ## License
 
